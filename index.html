@@ -4,13 +4,15 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Học Kana Flashcard</title>
+    <title>Học Kana & Từ vựng</title>
     <style>
         :root {
             --bg: #0f172a;
             --card: #1e293b;
             --text: #e2e8f0;
             --accent: #38bdf8;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
 
         body {
@@ -30,6 +32,7 @@
             background: var(--accent);
             cursor: pointer;
             font-weight: bold;
+            color: #000;
         }
 
         .card-container {
@@ -49,6 +52,7 @@
             font-size: 60px;
             cursor: pointer;
             transition: 0.3s;
+            color: var(--text);
         }
 
         .card:hover {
@@ -58,29 +62,102 @@
         .controls {
             margin-top: 20px;
         }
+
+        /* Styles for Quiz Mode */
+        #flashcard-container,
+        #quiz-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .quiz-btn {
+            background: var(--card);
+            color: var(--text);
+            padding: 20px 10px;
+            font-size: 20px;
+            border-radius: 12px;
+            transition: 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .quiz-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .quiz-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 22px;
+            height: 80px;
+        }
+
+        #quiz-question {
+            font-size: 32px;
+            text-align: center;
+            padding: 10px 30px;
+            cursor: default;
+        }
     </style>
 </head>
 
 <body>
-    <h1>Flashcard Kana 🧠</h1>
+    <h1>Học Tiếng Nhật 🇯🇵🧠</h1>
 
-    <select id="modeSelect" onchange="changeMode()">
+    <select id="modeSelect" onchange="changeMode()" style="font-size: 16px; padding: 10px;">
         <option value="katakana">Katakana</option>
         <option value="hiragana">Hiragana</option>
-        <option value="both">Cả hai</option>
+        <option value="both">Cả hai Kara</option>
+        <option value="quiz">Trắc nghiệm Từ vựng</option>
     </select>
 
-    <div class="card-container">
-        <div class="card" id="card" onclick="flipCard()">あ</div>
+    <div id="flashcard-container">
+        <div class="card-container">
+            <div class="card" id="card" onclick="flipCard()">あ</div>
+        </div>
+
+        <div class="controls">
+            <button onclick="prevCard()">⬅</button>
+            <button onclick="shuffleAndReset()" title="Trộn ngẫu nhiên (Xáo trộn)">🔀</button>
+            <button onclick="nextCard()">➡</button>
+        </div>
     </div>
 
-    <div class="controls">
-        <button onclick="prevCard()">⬅</button>
-        <button onclick="shuffleAndReset()" title="Trộn ngẫu nhiên (Xáo trộn)">🔀</button>
-        <button onclick="nextCard()">➡</button>
+    <div id="quiz-container" style="display: none;">
+        <div class="card-container">
+            <div id="quiz-question" class="card"></div>
+        </div>
+
+        <div id="quiz-options" class="options-grid">
+            <button class="quiz-btn" onclick="checkAnswer(0)"></button>
+            <button class="quiz-btn" onclick="checkAnswer(1)"></button>
+            <button class="quiz-btn" onclick="checkAnswer(2)"></button>
+            <button class="quiz-btn" onclick="checkAnswer(3)"></button>
+        </div>
+
+        <div id="quiz-result" class="result"></div>
+        <button id="next-quiz-btn" onclick="nextQuizQuestion()"
+            style="display: none; background: var(--success); color: white; padding: 12px 24px; font-size: 18px;">Câu
+            tiếp theo ➡</button>
     </div>
 
     <script>
+        // === KANA LOGIC ===
         const hiragana = [
             { char: "あ", romaji: "a" }, { char: "い", romaji: "i" }, { char: "う", romaji: "u" }, { char: "え", romaji: "e" }, { char: "お", romaji: "o" },
             { char: "か", romaji: "ka" }, { char: "き", romaji: "ki" }, { char: "く", romaji: "ku" }, { char: "け", romaji: "ke" }, { char: "こ", romaji: "ko" },
@@ -114,22 +191,12 @@
             }
         }
 
-        function shuffleAndReset() {
-            shuffleArray(currentSet);
-            index = 0;
-            renderCard();
-        }
-
         let currentSet = [...katakana];
         shuffleArray(currentSet);
         let index = 0;
         let flipped = false;
 
-        function changeMode() {
-            const mode = document.getElementById("modeSelect").value;
-            if (mode === "hiragana") currentSet = [...hiragana];
-            else if (mode === "katakana") currentSet = [...katakana];
-            else currentSet = [...hiragana, ...katakana];
+        function shuffleAndReset() {
             shuffleArray(currentSet);
             index = 0;
             renderCard();
@@ -155,6 +222,201 @@
         function prevCard() {
             index = (index - 1 + currentSet.length) % currentSet.length;
             renderCard();
+        }
+
+        // === QUIZ LOGIC ===
+        const quizVocabulary = [
+            // Từ vựng 1
+            { jp: "私 (watashi)", vn: "Tôi" },
+            { jp: "名前 (namae)", vn: "Tên" },
+            { jp: "国 (kuni)", vn: "Đất nước" },
+            { jp: "日本 (nihon)", vn: "Nhật Bản" },
+            { jp: "アメリカ (amerika)", vn: "Mỹ" },
+            { jp: "韓国 (kankoku)", vn: "Hàn Quốc" },
+            { jp: "学校 (gakkou)", vn: "Trường học" },
+            { jp: "仕事 (shigoto)", vn: "Công việc" },
+            { jp: "学生 (gakusei)", vn: "Học sinh/Sinh viên" },
+            { jp: "先生 (sensei)", vn: "Giáo viên" },
+            { jp: "会社員 (kaishain)", vn: "Nhân viên công ty" },
+            { jp: "誕生日 (tanjoubi)", vn: "Sinh nhật" },
+            { jp: "いつ (itsu)", vn: "Khi nào" },
+            { jp: "趣味 (shumi)", vn: "Sở thích" },
+            { jp: "スポーツ (supo-tsu)", vn: "Thể thao" },
+            { jp: "映画 (eiga)", vn: "Phim ảnh" },
+            { jp: "読書 (dokusho)", vn: "Đọc sách" },
+            { jp: "料理 (ryouri)", vn: "Nấu ăn" },
+            { jp: "何 (nani)", vn: "Cái gì" },
+
+            // Từ vựng 2
+            { jp: "ここ (koko)", vn: "Ở đây" },
+            { jp: "そこ (soko)", vn: "Ở đó" },
+            { jp: "あそこ (asoko)", vn: "Ở kia" },
+            { jp: "トイレ (toire)", vn: "Nhà vệ sinh" },
+            { jp: "スーパー (su-pa-)", vn: "Siêu thị" },
+            { jp: "レストラン (resutoran)", vn: "Nhà hàng" },
+            { jp: "携帯電話 (keitaidenwa)", vn: "Điện thoại di động" },
+            { jp: "パソコン (pasokon)", vn: "Máy tính cá nhân" },
+            { jp: "本 (hon)", vn: "Sách" },
+            { jp: "水 (mizu)", vn: "Nước" },
+            { jp: "どこ (doko)", vn: "Ở đâu" },
+            { jp: "これ (kore)", vn: "Cái này" },
+            { jp: "それ (sore)", vn: "Cái đó" },
+            { jp: "あれ (are)", vn: "Cái kia" },
+            { jp: "かばん (kaban)", vn: "Cặp/Túi" },
+            { jp: "時計 (tokei)", vn: "Đồng hồ" },
+            { jp: "いくら (ikura)", vn: "Bao nhiêu tiền" },
+            { jp: "肉 (niku)", vn: "Thịt" },
+            { jp: "魚 (sakana)", vn: "Cá" },
+            { jp: "野菜 (yasai)", vn: "Rau" },
+            { jp: "ご飯 (gohan)", vn: "Cơm" },
+            { jp: "コーヒー (ko-hi-)", vn: "Cà phê" },
+            { jp: "誰 (dare)", vn: "Ai" },
+
+            // Từ vựng 3
+            { jp: "今 (ima)", vn: "Bây giờ" },
+            { jp: "時間 (jikan)", vn: "Thời gian" },
+            { jp: "休み (yasumi)", vn: "Ngày nghỉ" },
+            { jp: "病院 (byouin)", vn: "Bệnh viện" },
+            { jp: "公園 (kouen)", vn: "Công viên" },
+            { jp: "海 (umi)", vn: "Biển" },
+            { jp: "お酒 (osake)", vn: "Rượu" },
+            { jp: "行きます (ikimasu)", vn: "Đi" },
+            { jp: "帰ります (kaerimasu)", vn: "Về" },
+            { jp: "飲みます (nomimasu)", vn: "Uống" },
+            { jp: "食べます (tabemasu)", vn: "Ăn" },
+            { jp: "見ます (mimasu)", vn: "Xem/Nhìn" },
+            { jp: "します (shimasu)", vn: "Làm/Chơi" },
+            { jp: "朝 (asa)", vn: "Sáng" },
+            { jp: "夜 (yoru)", vn: "Tối" },
+            { jp: "毎日 (mainichi)", vn: "Mọi ngày" },
+            { jp: "買います (kaimasu)", vn: "Mua" },
+            { jp: "聞きます (kikimasu)", vn: "Nghe" },
+            { jp: "働きます (hatarakimasu)", vn: "Làm việc" },
+            { jp: "読みます (yomimasu)", vn: "Đọc" },
+            { jp: "起きます (okimasu)", vn: "Thức dậy" },
+            { jp: "寝ます (nemasu)", vn: "Ngủ" },
+            { jp: "勉強します (benkyoushimasu)", vn: "Học" },
+            { jp: "来ます (kimasu)", vn: "Đến" }
+        ];
+
+        let quizQueue = [];
+        let currentQuizWord = null;
+        let currentOptions = [];
+        let isAnswered = false;
+
+        function startQuiz() {
+            quizQueue = [...quizVocabulary];
+            shuffleArray(quizQueue);
+            nextQuizQuestion();
+        }
+
+        function nextQuizQuestion() {
+            document.getElementById('next-quiz-btn').style.display = "none";
+            document.getElementById('quiz-result').innerHTML = "";
+
+            if (quizQueue.length === 0) {
+                document.getElementById('quiz-question').textContent = "Hoàn thành!";
+                document.getElementById('quiz-result').innerHTML = "<span style='color: var(--success); font-weight:bold;'>Tuyệt vời! Bạn đã học xong tất cả từ vựng!</span>";
+                document.getElementById('quiz-options').style.display = "none";
+                return;
+            }
+
+            document.getElementById('quiz-options').style.display = "grid";
+            isAnswered = false;
+            currentQuizWord = quizQueue.shift();
+
+            // Lấy 3 đáp án sai ngẫu nhiên
+            let tempVocab = quizVocabulary.filter(v => v.jp !== currentQuizWord.jp);
+            shuffleArray(tempVocab);
+            let wrongOptions = tempVocab.slice(0, 3);
+
+            // Gộp và xáo trộn 4 đáp án
+            currentOptions = [currentQuizWord, ...wrongOptions];
+            shuffleArray(currentOptions);
+
+            // Hiển thị câu hỏi
+            document.getElementById('quiz-question').textContent = currentQuizWord.vn;
+
+            // Gán giá trị vào 4 nút
+            const btns = document.querySelectorAll('.quiz-btn');
+            btns.forEach((btn, index) => {
+                btn.textContent = currentOptions[index].jp;
+                btn.style.backgroundColor = "var(--card)";
+                btn.style.color = "var(--text)";
+                btn.disabled = false;
+            });
+        }
+
+        function checkAnswer(selectedIndex) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const btns = document.querySelectorAll('.quiz-btn');
+            const selectedBtn = btns[selectedIndex];
+            const selectedWord = currentOptions[selectedIndex];
+            const resultDiv = document.getElementById('quiz-result');
+
+            // Tìm nút chứa đáp án đúng
+            let correctIndex = currentOptions.findIndex(v => v.jp === currentQuizWord.jp);
+            const correctBtn = btns[correctIndex];
+
+            if (selectedWord.jp === currentQuizWord.jp) {
+                // Trả lời ĐÚNG
+                selectedBtn.style.backgroundColor = "var(--success)"; // Màu xanh
+                selectedBtn.style.color = "#fff";
+                resultDiv.innerHTML = `<span style='color: var(--success); font-weight:bold;'>Chính xác!</span><br>${currentQuizWord.jp} - ${currentQuizWord.vn}`;
+
+                // Tự động chuyển câu sau 1.5 giây
+                setTimeout(() => {
+                    if (document.getElementById("modeSelect").value === "quiz") {
+                        nextQuizQuestion();
+                    }
+                }, 1500);
+            } else {
+                // Trả lời SAI
+                selectedBtn.style.backgroundColor = "var(--danger)"; // Màu đỏ
+                selectedBtn.style.color = "#fff";
+                correctBtn.style.backgroundColor = "var(--success)"; // Làm nổi bật đáp án đúng
+                correctBtn.style.color = "#fff";
+
+                resultDiv.innerHTML = `<span style='color: var(--danger); font-weight:bold;'>Sai rồi!</span><br>Đáp án đúng là: ${currentQuizWord.jp} - ${currentQuizWord.vn}`;
+
+                // Chèn câu chọn sai vào lại mảng để làm lại (ngẫu nhiên từ vị trí 2 đến 5)
+                let insertPos = Math.min(quizQueue.length, Math.floor(Math.random() * 3) + 2);
+                quizQueue.splice(insertPos, 0, currentQuizWord);
+
+                // Hiện nút "Tiếp theo"
+                document.getElementById('next-quiz-btn').style.display = "inline-block";
+            }
+
+            // Khóa tất cả các nút
+            btns.forEach(btn => {
+                btn.disabled = true;
+                if (btn.style.backgroundColor === "var(--card)") {
+                    btn.style.opacity = "0.5";
+                }
+            });
+        }
+
+        // === ROOT LOGIC ===
+        function changeMode() {
+            const mode = document.getElementById("modeSelect").value;
+
+            if (mode === "quiz") {
+                document.getElementById('flashcard-container').style.display = 'none';
+                document.getElementById('quiz-container').style.display = 'flex';
+                startQuiz();
+            } else {
+                document.getElementById('flashcard-container').style.display = 'flex';
+                document.getElementById('quiz-container').style.display = 'none';
+
+                if (mode === "hiragana") currentSet = [...hiragana];
+                else if (mode === "katakana") currentSet = [...katakana];
+                else currentSet = [...hiragana, ...katakana];
+                shuffleArray(currentSet);
+                index = 0;
+                renderCard();
+            }
         }
 
         renderCard();
