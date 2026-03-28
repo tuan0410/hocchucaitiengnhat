@@ -113,6 +113,84 @@
             padding: 10px 30px;
             cursor: default;
         }
+
+        /* Writing mode styles */
+        #writing-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .writing-prompt {
+            font-size: 36px;
+            font-weight: bold;
+            color: var(--accent);
+            margin: 20px 0 10px;
+        }
+
+        .writing-hint {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 20px;
+        }
+
+        .writing-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 16px 20px;
+            font-size: 24px;
+            border-radius: 12px;
+            border: 2px solid #334155;
+            background: var(--card);
+            color: var(--text);
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .writing-input:focus {
+            border-color: var(--accent);
+        }
+
+        .writing-input.correct {
+            border-color: var(--success);
+            background: #14532d33;
+        }
+
+        .writing-input.wrong {
+            border-color: var(--danger);
+            background: #7f1d1d33;
+        }
+
+        .writing-submit {
+            margin-top: 15px;
+            background: var(--accent);
+            color: #000;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .writing-submit:hover {
+            transform: scale(1.05);
+        }
+
+        .writing-score {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #94a3b8;
+        }
+
+        .writing-correct-answer {
+            margin-top: 10px;
+            font-size: 20px;
+            color: var(--accent);
+        }
     </style>
 </head>
 
@@ -124,6 +202,8 @@
         <option value="hiragana">Hiragana</option>
         <option value="both">Cả hai Kara</option>
         <option value="quiz">Trắc nghiệm Từ vựng</option>
+        <option value="writing">Tự viết Từ vựng ✍️</option>
+        <option value="datetime">Viết Thứ/Ngày/Phút 📅</option>
     </select>
 
     <div id="flashcard-container">
@@ -154,6 +234,38 @@
         <button id="next-quiz-btn" onclick="nextQuizQuestion()"
             style="display: none; background: var(--success); color: white; padding: 12px 24px; font-size: 18px;">Câu
             tiếp theo ➡</button>
+    </div>
+
+    <div id="writing-container">
+        <div class="card-container">
+            <div class="card" id="writing-question" style="font-size:28px; cursor:default;"></div>
+        </div>
+        <p class="writing-hint">Gõ bằng Hiragana, Katakana hoặc phiên âm Romaji</p>
+        <input type="text" id="writing-input" class="writing-input" placeholder="Nhập tiếng Nhật..." autocomplete="off" />
+        <button class="writing-submit" id="writing-submit-btn" onclick="checkWritingAnswer()">Kiểm tra ✅</button>
+        <div id="writing-result" class="result"></div>
+        <div id="writing-correct" class="writing-correct-answer"></div>
+        <div id="writing-score" class="writing-score"></div>
+        <button id="next-writing-btn" onclick="nextWritingQuestion()" style="display:none; background: var(--success); color: white; padding: 12px 24px; font-size: 18px; border-radius: 8px; border: none; cursor: pointer; margin-top:10px;">Câu tiếp theo ➡</button>
+    </div>
+
+    <div id="datetime-container" style="display:none; flex-direction:column; align-items:center; width:100%;">
+        <div style="margin: 15px 0;">
+            <button class="dt-cat-btn" onclick="setDtCategory('days')" id="dt-cat-days" style="background:var(--accent);color:#000;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;margin:3px;">Thứ trong tuần</button>
+            <button class="dt-cat-btn" onclick="setDtCategory('dates')" id="dt-cat-dates" style="background:var(--card);color:var(--text);padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;margin:3px;">Ngày trong tháng</button>
+            <button class="dt-cat-btn" onclick="setDtCategory('minutes')" id="dt-cat-minutes" style="background:var(--card);color:var(--text);padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;margin:3px;">Số phút</button>
+            <button class="dt-cat-btn" onclick="setDtCategory('all')" id="dt-cat-all" style="background:var(--card);color:var(--text);padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;margin:3px;">Tất cả</button>
+        </div>
+        <div class="card-container">
+            <div class="card" id="dt-question" style="font-size:24px; cursor:default;"></div>
+        </div>
+        <p class="writing-hint">Gõ bằng Hiragana, Katakana hoặc phiên âm Romaji</p>
+        <input type="text" id="dt-input" class="writing-input" placeholder="Nhập tiếng Nhật..." autocomplete="off" />
+        <button class="writing-submit" id="dt-submit-btn" onclick="checkDtAnswer()">Kiểm tra ✅</button>
+        <div id="dt-result" class="result"></div>
+        <div id="dt-correct" class="writing-correct-answer"></div>
+        <div id="dt-score" class="writing-score"></div>
+        <button id="next-dt-btn" onclick="nextDtQuestion()" style="display:none; background: var(--success); color: white; padding: 12px 24px; font-size: 18px; border-radius: 8px; border: none; cursor: pointer; margin-top:10px;">Câu tiếp theo ➡</button>
     </div>
 
     <script>
@@ -398,17 +510,341 @@
             });
         }
 
+        // === WRITING MODE LOGIC ===
+        let writingQueue = [];
+        let currentWritingWord = null;
+        let writingCorrect = 0;
+        let writingTotal = 0;
+        let writingAnswered = false;
+
+        function extractRomaji(jpStr) {
+            const match = jpStr.match(/\(([^)]+)\)/);
+            return match ? match[1].trim().toLowerCase() : '';
+        }
+
+        function extractKana(jpStr) {
+            // Extract all hiragana and katakana characters
+            const kana = jpStr.match(/[\u3040-\u309F\u30A0-\u30FF\u30FC]+/g);
+            return kana ? kana.join('') : '';
+        }
+
+        function extractKanji(jpStr) {
+            // Get the part before the parentheses
+            const before = jpStr.split('(')[0].trim();
+            return before;
+        }
+
+        function normalizeInput(str) {
+            return str.trim().toLowerCase()
+                .replace(/[\s\-ー]/g, '')
+                .replace(/ou/g, 'o')
+                .replace(/uu/g, 'u');
+        }
+
+        function checkWritingMatch(userInput, word) {
+            const input = normalizeInput(userInput);
+            if (!input) return false;
+
+            // Check against romaji
+            const romaji = normalizeInput(extractRomaji(word.jp));
+            if (romaji && input === romaji) return true;
+
+            // Check against kana
+            const kana = extractKana(word.jp);
+            if (kana && input === kana) return true;
+
+            // Check against kanji part
+            const kanji = extractKanji(word.jp).replace(/\s/g, '');
+            if (kanji && input === kanji) return true;
+
+            // Check full jp string without spaces
+            if (input === word.jp.replace(/\s/g, '').toLowerCase()) return true;
+
+            return false;
+        }
+
+        function startWriting() {
+            writingQueue = [...quizVocabulary];
+            shuffleArray(writingQueue);
+            writingCorrect = 0;
+            writingTotal = 0;
+            nextWritingQuestion();
+        }
+
+        function nextWritingQuestion() {
+            document.getElementById('next-writing-btn').style.display = 'none';
+            document.getElementById('writing-result').innerHTML = '';
+            document.getElementById('writing-correct').innerHTML = '';
+            const input = document.getElementById('writing-input');
+            input.value = '';
+            input.className = 'writing-input';
+            input.disabled = false;
+            input.focus();
+            document.getElementById('writing-submit-btn').disabled = false;
+            writingAnswered = false;
+
+            if (writingQueue.length === 0) {
+                document.getElementById('writing-question').textContent = '🎉 Hoàn thành!';
+                document.getElementById('writing-result').innerHTML = `<span style='color:var(--success);font-weight:bold;'>Tuyệt vời! Bạn đúng ${writingCorrect}/${writingTotal} câu!</span>`;
+                input.style.display = 'none';
+                document.getElementById('writing-submit-btn').style.display = 'none';
+                return;
+            }
+
+            input.style.display = '';
+            document.getElementById('writing-submit-btn').style.display = '';
+            currentWritingWord = writingQueue.shift();
+            document.getElementById('writing-question').textContent = currentWritingWord.vn;
+            updateWritingScore();
+        }
+
+        function updateWritingScore() {
+            document.getElementById('writing-score').textContent = `Đúng: ${writingCorrect}/${writingTotal} | Còn lại: ${writingQueue.length + 1}`;
+        }
+
+        function checkWritingAnswer() {
+            if (writingAnswered) return;
+            writingAnswered = true;
+            writingTotal++;
+
+            const input = document.getElementById('writing-input');
+            const userAnswer = input.value;
+            const resultDiv = document.getElementById('writing-result');
+            const correctDiv = document.getElementById('writing-correct');
+
+            input.disabled = true;
+            document.getElementById('writing-submit-btn').disabled = true;
+
+            if (checkWritingMatch(userAnswer, currentWritingWord)) {
+                writingCorrect++;
+                input.className = 'writing-input correct';
+                resultDiv.innerHTML = `<span style='color:var(--success);font-weight:bold;'>✅ Chính xác!</span>`;
+                correctDiv.innerHTML = `${currentWritingWord.jp} = ${currentWritingWord.vn}`;
+                setTimeout(() => {
+                    if (document.getElementById('modeSelect').value === 'writing') {
+                        nextWritingQuestion();
+                    }
+                }, 1500);
+            } else {
+                input.className = 'writing-input wrong';
+                resultDiv.innerHTML = `<span style='color:var(--danger);font-weight:bold;'>❌ Sai rồi!</span>`;
+                correctDiv.innerHTML = `Đáp án: <strong>${currentWritingWord.jp}</strong> = ${currentWritingWord.vn}`;
+                let insertPos = Math.min(writingQueue.length, Math.floor(Math.random() * 3) + 2);
+                writingQueue.splice(insertPos, 0, currentWritingWord);
+                document.getElementById('next-writing-btn').style.display = 'inline-block';
+            }
+            updateWritingScore();
+        }
+
+        // Enter key support for writing mode
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('writing-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (writingAnswered) {
+                        nextWritingQuestion();
+                    } else {
+                        checkWritingAnswer();
+                    }
+                }
+            });
+            document.getElementById('dt-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (dtAnswered) {
+                        nextDtQuestion();
+                    } else {
+                        checkDtAnswer();
+                    }
+                }
+            });
+        });
+
+        // === DATETIME WRITING MODE ===
+        const dtDays = [
+            { vn: "Thứ Hai", jp: "月曜日 (getsuyoubi)", accepts: ["げつようび","ゲツヨウビ","getsuyoubi","getsuyōbi","月曜日"] },
+            { vn: "Thứ Ba", jp: "火曜日 (kayoubi)", accepts: ["かようび","カヨウビ","kayoubi","kayōbi","火曜日"] },
+            { vn: "Thứ Tư", jp: "水曜日 (suiyoubi)", accepts: ["すいようび","スイヨウビ","suiyoubi","suiyōbi","水曜日"] },
+            { vn: "Thứ Năm", jp: "木曜日 (mokuyoubi)", accepts: ["もくようび","モクヨウビ","mokuyoubi","mokuyōbi","木曜日"] },
+            { vn: "Thứ Sáu", jp: "金曜日 (kinyoubi)", accepts: ["きんようび","キンヨウビ","kinyoubi","kinyōbi","金曜日"] },
+            { vn: "Thứ Bảy", jp: "土曜日 (doyoubi)", accepts: ["どようび","ドヨウビ","doyoubi","doyōbi","土曜日"] },
+            { vn: "Chủ Nhật", jp: "日曜日 (nichiyoubi)", accepts: ["にちようび","ニチヨウビ","nichiyoubi","nichiyōbi","日曜日"] },
+        ];
+
+        const dtDates = [
+            { vn: "Ngày 1", jp: "ついたち (tsuitachi)", accepts: ["ついたち","ツイタチ","tsuitachi","一日"] },
+            { vn: "Ngày 2", jp: "ふつか (futsuka)", accepts: ["ふつか","フツカ","futsuka","二日"] },
+            { vn: "Ngày 3", jp: "みっか (mikka)", accepts: ["みっか","ミッカ","mikka","三日"] },
+            { vn: "Ngày 4", jp: "よっか (yokka)", accepts: ["よっか","ヨッカ","yokka","四日"] },
+            { vn: "Ngày 5", jp: "いつか (itsuka)", accepts: ["いつか","イツカ","itsuka","五日"] },
+            { vn: "Ngày 6", jp: "むいか (muika)", accepts: ["むいか","ムイカ","muika","六日"] },
+            { vn: "Ngày 7", jp: "なのか (nanoka)", accepts: ["なのか","ナノカ","nanoka","七日"] },
+            { vn: "Ngày 8", jp: "ようか (youka)", accepts: ["ようか","ヨウカ","youka","yōka","八日"] },
+            { vn: "Ngày 9", jp: "ここのか (kokonoka)", accepts: ["ここのか","ココノカ","kokonoka","九日"] },
+            { vn: "Ngày 10", jp: "とおか (tooka)", accepts: ["とおか","トオカ","tooka","tōka","十日"] },
+            { vn: "Ngày 11", jp: "じゅういちにち (juuichinichi)", accepts: ["じゅういちにち","ジュウイチニチ","juuichinichi","jūichinichi","十一日"] },
+            { vn: "Ngày 12", jp: "じゅうににち (juuninichi)", accepts: ["じゅうににち","ジュウニニチ","juuninichi","jūninichi","十二日"] },
+            { vn: "Ngày 13", jp: "じゅうさんにち (juusannichi)", accepts: ["じゅうさんにち","ジュウサンニチ","juusannichi","jūsannichi","十三日"] },
+            { vn: "Ngày 14", jp: "じゅうよっか (juuyokka)", accepts: ["じゅうよっか","ジュウヨッカ","juuyokka","jūyokka","十四日"] },
+            { vn: "Ngày 15", jp: "じゅうごにち (juugonichi)", accepts: ["じゅうごにち","ジュウゴニチ","juugonichi","jūgonichi","十五日"] },
+            { vn: "Ngày 16", jp: "じゅうろくにち (juurokunichi)", accepts: ["じゅうろくにち","ジュウロクニチ","juurokunichi","jūrokunichi","十六日"] },
+            { vn: "Ngày 17", jp: "じゅうしちにち (juushichinichi)", accepts: ["じゅうしちにち","ジュウシチニチ","juushichinichi","jūshichinichi","十七日"] },
+            { vn: "Ngày 18", jp: "じゅうはちにち (juuhachinichi)", accepts: ["じゅうはちにち","ジュウハチニチ","juuhachinichi","jūhachinichi","十八日"] },
+            { vn: "Ngày 19", jp: "じゅうくにち (juukunichi)", accepts: ["じゅうくにち","ジュウクニチ","juukunichi","jūkunichi","十九日"] },
+            { vn: "Ngày 20", jp: "はつか (hatsuka)", accepts: ["はつか","ハツカ","hatsuka","二十日"] },
+            { vn: "Ngày 21", jp: "にじゅういちにち (nijuuichinichi)", accepts: ["にじゅういちにち","ニジュウイチニチ","nijuuichinichi","nijūichinichi","二十一日"] },
+            { vn: "Ngày 22", jp: "にじゅうににち (nijuuninichi)", accepts: ["にじゅうににち","ニジュウニニチ","nijuuninichi","nijūninichi","二十二日"] },
+            { vn: "Ngày 23", jp: "にじゅうさんにち (nijuusannichi)", accepts: ["にじゅうさんにち","ニジュウサンニチ","nijuusannichi","nijūsannichi","二十三日"] },
+            { vn: "Ngày 24", jp: "にじゅうよっか (nijuuyokka)", accepts: ["にじゅうよっか","ニジュウヨッカ","nijuuyokka","nijūyokka","二十四日"] },
+            { vn: "Ngày 25", jp: "にじゅうごにち (nijuugonichi)", accepts: ["にじゅうごにち","ニジュウゴニチ","nijuugonichi","nijūgonichi","二十五日"] },
+            { vn: "Ngày 26", jp: "にじゅうろくにち (nijuurokunichi)", accepts: ["にじゅうろくにち","ニジュウロクニチ","nijuurokunichi","nijūrokunichi","二十六日"] },
+            { vn: "Ngày 27", jp: "にじゅうしちにち (nijuushichinichi)", accepts: ["にじゅうしちにち","ニジュウシチニチ","nijuushichinichi","nijūshichinichi","二十七日"] },
+            { vn: "Ngày 28", jp: "にじゅうはちにち (nijuuhachinichi)", accepts: ["にじゅうはちにち","ニジュウハチニチ","nijuuhachinichi","nijūhachinichi","二十八日"] },
+            { vn: "Ngày 29", jp: "にじゅうくにち (nijuukunichi)", accepts: ["にじゅうくにち","ニジュウクニチ","nijuukunichi","nijūkunichi","二十九日"] },
+            { vn: "Ngày 30", jp: "さんじゅうにち (sanjuunichi)", accepts: ["さんじゅうにち","サンジュウニチ","sanjuunichi","sanjūnichi","三十日"] },
+            { vn: "Ngày 31", jp: "さんじゅういちにち (sanjuuichinichi)", accepts: ["さんじゅういちにち","サンジュウイチニチ","sanjuuichinichi","sanjūichinichi","三十一日"] },
+        ];
+
+        const dtMinutes = [
+            { vn: "1 phút", jp: "いっぷん (ippun)", accepts: ["いっぷん","イップン","ippun","一分"] },
+            { vn: "2 phút", jp: "にふん (nifun)", accepts: ["にふん","ニフン","nifun","二分"] },
+            { vn: "3 phút", jp: "さんぷん (sanpun)", accepts: ["さんぷん","サンプン","sanpun","三分"] },
+            { vn: "4 phút", jp: "よんぷん (yonpun)", accepts: ["よんぷん","ヨンプン","yonpun","四分"] },
+            { vn: "5 phút", jp: "ごふん (gofun)", accepts: ["ごふん","ゴフン","gofun","五分"] },
+            { vn: "6 phút", jp: "ろっぷん (roppun)", accepts: ["ろっぷん","ロップン","roppun","六分"] },
+            { vn: "7 phút", jp: "ななふん (nanafun)", accepts: ["ななふん","ナナフン","nanafun","七分"] },
+            { vn: "8 phút", jp: "はっぷん (happun)", accepts: ["はっぷん","ハップン","happun","はちふん","hachifun","八分"] },
+            { vn: "9 phút", jp: "きゅうふん (kyuufun)", accepts: ["きゅうふん","キュウフン","kyuufun","kyūfun","九分"] },
+            { vn: "10 phút", jp: "じゅっぷん (juppun)", accepts: ["じゅっぷん","ジュップン","juppun","じっぷん","jippun","十分"] },
+            { vn: "11 phút", jp: "じゅういっぷん (juuippun)", accepts: ["じゅういっぷん","ジュウイップン","juuippun","jūippun","十一分"] },
+            { vn: "12 phút", jp: "じゅうにふん (juunifun)", accepts: ["じゅうにふん","ジュウニフン","juunifun","jūnifun","十二分"] },
+            { vn: "13 phút", jp: "じゅうさんぷん (juusanpun)", accepts: ["じゅうさんぷん","ジュウサンプン","juusanpun","jūsanpun","十三分"] },
+            { vn: "14 phút", jp: "じゅうよんぷん (juuyonpun)", accepts: ["じゅうよんぷん","ジュウヨンプン","juuyonpun","jūyonpun","十四分"] },
+            { vn: "15 phút", jp: "じゅうごふん (juugofun)", accepts: ["じゅうごふん","ジュウゴフン","juugofun","jūgofun","十五分"] },
+            { vn: "20 phút", jp: "にじゅっぷん (nijuppun)", accepts: ["にじゅっぷん","ニジュップン","nijuppun","nijippun","二十分"] },
+            { vn: "25 phút", jp: "にじゅうごふん (nijuugofun)", accepts: ["にじゅうごふん","ニジュウゴフン","nijuugofun","nijūgofun","二十五分"] },
+            { vn: "30 phút", jp: "さんじゅっぷん (sanjuppun) / はん (han)", accepts: ["さんじゅっぷん","サンジュップン","sanjuppun","はん","ハン","han","三十分","半"] },
+            { vn: "45 phút", jp: "よんじゅうごふん (yonjuugofun)", accepts: ["よんじゅうごふん","ヨンジュウゴフン","yonjuugofun","yonjūgofun","四十五分"] },
+            { vn: "50 phút", jp: "ごじゅっぷん (gojuppun)", accepts: ["ごじゅっぷん","ゴジュップン","gojuppun","gojippun","五十分"] },
+        ];
+
+        let dtQueue = [];
+        let currentDtWord = null;
+        let dtCorrectCount = 0;
+        let dtTotalCount = 0;
+        let dtAnswered = false;
+        let dtCategory = 'days';
+
+        function setDtCategory(cat) {
+            dtCategory = cat;
+            ['days','dates','minutes','all'].forEach(c => {
+                const btn = document.getElementById('dt-cat-' + c);
+                btn.style.background = (c === cat) ? 'var(--accent)' : 'var(--card)';
+                btn.style.color = (c === cat) ? '#000' : 'var(--text)';
+            });
+            startDt();
+        }
+
+        function getDtData() {
+            if (dtCategory === 'days') return [...dtDays];
+            if (dtCategory === 'dates') return [...dtDates];
+            if (dtCategory === 'minutes') return [...dtMinutes];
+            return [...dtDays, ...dtDates, ...dtMinutes];
+        }
+
+        function startDt() {
+            dtQueue = getDtData();
+            shuffleArray(dtQueue);
+            dtCorrectCount = 0;
+            dtTotalCount = 0;
+            nextDtQuestion();
+        }
+
+        function nextDtQuestion() {
+            document.getElementById('next-dt-btn').style.display = 'none';
+            document.getElementById('dt-result').innerHTML = '';
+            document.getElementById('dt-correct').innerHTML = '';
+            const input = document.getElementById('dt-input');
+            input.value = '';
+            input.className = 'writing-input';
+            input.disabled = false;
+            input.focus();
+            document.getElementById('dt-submit-btn').disabled = false;
+            dtAnswered = false;
+
+            if (dtQueue.length === 0) {
+                document.getElementById('dt-question').textContent = '🎉 Hoàn thành!';
+                document.getElementById('dt-result').innerHTML = `<span style='color:var(--success);font-weight:bold;'>Tuyệt vời! Bạn đúng ${dtCorrectCount}/${dtTotalCount} câu!</span>`;
+                input.style.display = 'none';
+                document.getElementById('dt-submit-btn').style.display = 'none';
+                return;
+            }
+
+            input.style.display = '';
+            document.getElementById('dt-submit-btn').style.display = '';
+            currentDtWord = dtQueue.shift();
+            document.getElementById('dt-question').textContent = currentDtWord.vn;
+            updateDtScore();
+        }
+
+        function updateDtScore() {
+            document.getElementById('dt-score').textContent = `Đúng: ${dtCorrectCount}/${dtTotalCount} | Còn lại: ${dtQueue.length + 1}`;
+        }
+
+        function checkDtAnswer() {
+            if (dtAnswered) return;
+            dtAnswered = true;
+            dtTotalCount++;
+
+            const input = document.getElementById('dt-input');
+            const userAnswer = input.value.trim().toLowerCase().replace(/[\s\-ー]/g, '');
+            const resultDiv = document.getElementById('dt-result');
+            const correctDiv = document.getElementById('dt-correct');
+
+            input.disabled = true;
+            document.getElementById('dt-submit-btn').disabled = true;
+
+            const isCorrect = currentDtWord.accepts.some(a => a.toLowerCase().replace(/[\s\-ー]/g, '') === userAnswer);
+
+            if (isCorrect) {
+                dtCorrectCount++;
+                input.className = 'writing-input correct';
+                resultDiv.innerHTML = `<span style='color:var(--success);font-weight:bold;'>✅ Chính xác!</span>`;
+                correctDiv.innerHTML = `${currentDtWord.vn} = ${currentDtWord.jp}`;
+                setTimeout(() => {
+                    if (document.getElementById('modeSelect').value === 'datetime') {
+                        nextDtQuestion();
+                    }
+                }, 1500);
+            } else {
+                input.className = 'writing-input wrong';
+                resultDiv.innerHTML = `<span style='color:var(--danger);font-weight:bold;'>❌ Sai rồi!</span>`;
+                correctDiv.innerHTML = `Đáp án: <strong>${currentDtWord.jp}</strong>`;
+                let insertPos = Math.min(dtQueue.length, Math.floor(Math.random() * 3) + 2);
+                dtQueue.splice(insertPos, 0, currentDtWord);
+                document.getElementById('next-dt-btn').style.display = 'inline-block';
+            }
+            updateDtScore();
+        }
+
         // === ROOT LOGIC ===
         function changeMode() {
             const mode = document.getElementById("modeSelect").value;
 
+            document.getElementById('flashcard-container').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('writing-container').style.display = 'none';
+            document.getElementById('datetime-container').style.display = 'none';
+
             if (mode === "quiz") {
-                document.getElementById('flashcard-container').style.display = 'none';
                 document.getElementById('quiz-container').style.display = 'flex';
                 startQuiz();
+            } else if (mode === "writing") {
+                document.getElementById('writing-container').style.display = 'flex';
+                startWriting();
+            } else if (mode === "datetime") {
+                document.getElementById('datetime-container').style.display = 'flex';
+                startDt();
             } else {
                 document.getElementById('flashcard-container').style.display = 'flex';
-                document.getElementById('quiz-container').style.display = 'none';
 
                 if (mode === "hiragana") currentSet = [...hiragana];
                 else if (mode === "katakana") currentSet = [...katakana];
